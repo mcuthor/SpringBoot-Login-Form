@@ -1,31 +1,25 @@
-# Start from Java 21 slim image—lean and clean
-FROM openjdk:21-slim AS build
+# ---------- Build Stage ----------
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 
+# Set working directory
 WORKDIR /app
 
-# Copy project files and build inside container for reproducibility
+# Copy all project files
 COPY . .
 
-# If using Maven
-RUN ./mvnw package -DskipTests
+# Build the project and skip tests for faster builds
+RUN mvn clean package -DskipTests
 
-# If using Gradle (uncomment instead):
-# RUN ./gradlew bootJar --no-daemon
-
-# --- Production image ---
+# ---------- Runtime Stage ----------
 FROM openjdk:21-slim
 
 WORKDIR /app
 
-# Copy the JAR from build stage
-ARG JAR_FILE=target/*.jar
-# If using Gradle, you might use: ARG JAR_FILE=build/libs/*.jar
-COPY --from=build /app/${JAR_FILE} app.jar
+# Copy built jar from build stage
+COPY --from=build /app/target/*.jar app.jar
 
-# Run as non-root user—safer is smarter
-RUN groupadd --system spring && useradd --system --gid spring spring
-USER spring:spring
-
+# Expose Spring Boot default port
 EXPOSE 8080
 
+# Run the jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
